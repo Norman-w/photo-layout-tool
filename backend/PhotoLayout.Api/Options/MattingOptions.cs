@@ -26,4 +26,17 @@ public class MattingOptions
 
     /// <summary>阈值后的软过渡宽度（0-1）：越大边缘越柔和。</summary>
     public float EdgeSoftness { get; set; } = 0.12f;
+
+    /// <summary>
+    /// 放大到原图尺寸后、套阈值前对蒙版做高斯模糊（sigma，像素级）。
+    /// U2Net 小图放大后蒙版往往很“陡”，不调模糊时阈值只移动亚像素级边缘，肉眼几乎看不出。
+    /// 设为 0 关闭。
+    /// </summary>
+    public float MaskPreBlurSigma { get; set; } = 1.35f;
+
+    /// <summary>
+    /// 发丝/轮廓处常出现「蒙版很实但 RGB 仍夹原背景色」的色边；阈值主要改 alpha，对这种边几乎无效。
+    /// 本项在半透明过渡带把源色往目标底色拽（0=关，~0.45 较均衡）。
+    /// </summary>
+    public float EdgeColorPullStrength { get; set; } = 0.42f;
 }

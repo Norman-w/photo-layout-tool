@@ -184,6 +184,11 @@ public sealed class OnnxMattingService : IDisposable
         using var maskFull = maskLo.Clone(ctx => ctx.Resize(ow, oh, KnownResamplers.Lanczos3));
 
         var cfg = _options.Value;
+        // 小分辨率蒙版 Lanczos 放大后 alpha 梯度极陡，阈值只平移亚像素级边缘；先轻模糊拉宽过渡带，阈值才有可见调节空间
+        var blurSigma = Math.Clamp(cfg.MaskPreBlurSigma, 0f, 8f);
+        if (blurSigma >= 0.05f)
+            maskFull.Mutate(ctx => ctx.GaussianBlur(blurSigma));
+
         var result = new Image<Rgba32>(ow, oh);
         for (var y = 0; y < oh; y++)
         {
@@ -204,10 +209,24 @@ public sealed class OnnxMattingService : IDisposable
                 var p = source[x, y];
                 if (cfg.RemoveBlueBackdrop && BlueBackdropDetector.IsLikelyStudioBlue(p))
                     a = Math.Min(a, Math.Clamp(cfg.BlueBackdropAlphaCap, 0f, 1f));
+
+                // 去色边：模型在发丝处常给高 alpha，但像素仍含原墙/天空色；单靠抬阈值压不掉。在 a≈0.5 的过渡带把源 RGB 往目标底色拉。
+                var pull = Math.Clamp(cfg.EdgeColorPullStrength, 0f, 1f);
+                float r = p.R, g = p.G, b = p.B;
+                if (pull > 0.001f && a is > 0.02f and < 0.995f)
+                {
+                    // 中间透明处 + 仍略透的外沿（a 仍偏高时 4a(1-a) 太小，头发外圈色边靠 (1-a) 项）
+                    var edge = Math.Clamp(4f * a * (1f - a) + 0.5f * (1f - a), 0f, 1f);
+                    var mix = pull * edge;
+                    r = r * (1f - mix) + bgColor.R * mix;
+                    g = g * (1f - mix) + bgColor.G * mix;
+                    b = b * (1f - mix) + bgColor.B * mix;
+                }
+
                 result[x, y] = new Rgba32(
-                    (byte)(p.R * a + bgColor.R * (1 - a)),
-                    (byte)(p.G * a + bgColor.G * (1 - a)),
-                    (byte)(p.B * a + bgColor.B * (1 - a)));
+                    (byte)(r * a + bgColor.R * (1 - a)),
+                    (byte)(g * a + bgColor.G * (1 - a)),
+                    (byte)(b * a + bgColor.B * (1 - a)));
             }
         }
 

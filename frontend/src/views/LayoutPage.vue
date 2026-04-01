@@ -38,7 +38,6 @@ const bgColorOptions = [
 ]
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const replaceInputRef = ref<HTMLInputElement | null>(null)
 const cropImageRef = ref<HTMLImageElement | null>(null)
 
 const selectedPaper = ref(paperPresets[0])
@@ -108,14 +107,6 @@ function pickOriginal() {
   fileInputRef.value?.click()
 }
 
-function pickReplace() {
-  if (!source.value) {
-    message.warning('请先选择原图')
-    return
-  }
-  replaceInputRef.value?.click()
-}
-
 function loadSingle(files: FileList | null) {
   if (!files?.length) return
   const file = [...files].find((f) => f.type.startsWith('image/'))
@@ -129,12 +120,6 @@ function loadSingle(files: FileList | null) {
 }
 
 function onSelectOriginal(e: Event) {
-  const input = e.target as HTMLInputElement
-  loadSingle(input.files)
-  input.value = ''
-}
-
-function onReplaceOriginal(e: Event) {
   const input = e.target as HTMLInputElement
   loadSingle(input.files)
   input.value = ''
@@ -214,7 +199,7 @@ async function applyBackgroundColor() {
     })
     source.value = {
       ...source.value,
-      processedSrc: res.url,
+      processedSrc: `${res.url}?t=${Date.now()}`,
     }
     message.success('换色完成，右侧和整版已更新')
   } catch (e) {
@@ -319,14 +304,14 @@ onBeforeUnmount(() => {
               :disabled="!source"
               style="max-width: 320px"
             />
-            <span class="matting-sliders__hint">调高可减少原背景残留，过高易裁掉头发边缘</span>
+            <span class="matting-sliders__hint">调高更吃背景；与「边缘过渡」配合看发际线/衣领变化最明显</span>
           </div>
           <div class="matting-sliders__row">
             <span class="matting-sliders__label">边缘过渡 {{ mattingEdgeSoftness.toFixed(2) }}</span>
             <n-slider
               v-model:value="mattingEdgeSoftness"
               :min="0.05"
-              :max="0.35"
+              :max="0.55"
               :step="0.01"
               :disabled="!source"
               style="max-width: 320px"
@@ -342,12 +327,10 @@ onBeforeUnmount(() => {
     <div class="no-print source-row">
       <n-card class="source-box" size="small" title="原图展示（完整，不裁剪显示）">
         <n-space size="small" style="margin-bottom: 8px">
-          <n-button size="small" type="primary" @click="pickOriginal">选择原图</n-button>
-          <n-button size="small" :disabled="!source" @click="pickReplace">更换原图</n-button>
+          <n-button size="small" type="primary" @click="pickOriginal">选择或更换原图</n-button>
           <n-button size="small" :disabled="!source" @click="openCropModal">裁剪</n-button>
         </n-space>
         <input ref="fileInputRef" class="sr-only" type="file" accept="image/*" @change="onSelectOriginal" />
-        <input ref="replaceInputRef" class="sr-only" type="file" accept="image/*" @change="onReplaceOriginal" />
         <div class="box-fixed square">
           <img v-if="source" :src="source.src" :alt="source.name" />
           <span v-else class="placeholder">未选择原图</span>

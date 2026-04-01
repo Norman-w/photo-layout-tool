@@ -35,14 +35,19 @@ export async function matteImage(
   options?: MatteOptions,
 ): Promise<MatteResponse> {
   const form = new FormData()
-  form.append('file', file)
+  // 文本字段放在 file 之前，避免个别环境下 multipart 解析异常
   form.append('bgColor', bgColor)
-  if (options?.foregroundThreshold != null && Number.isFinite(options.foregroundThreshold)) {
-    form.append('foregroundThreshold', String(options.foregroundThreshold))
+  if (options != null) {
+    if (options.foregroundThreshold != null) {
+      const n = Number(options.foregroundThreshold)
+      if (Number.isFinite(n)) form.append('foregroundThreshold', n.toString())
+    }
+    if (options.edgeSoftness != null) {
+      const n = Number(options.edgeSoftness)
+      if (Number.isFinite(n)) form.append('edgeSoftness', n.toString())
+    }
   }
-  if (options?.edgeSoftness != null && Number.isFinite(options.edgeSoftness)) {
-    form.append('edgeSoftness', String(options.edgeSoftness))
-  }
+  form.append('file', file)
   const res = await fetch('/api/images/matte', {
     method: 'POST',
     body: form,

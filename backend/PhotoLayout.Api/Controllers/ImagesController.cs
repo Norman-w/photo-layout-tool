@@ -108,32 +108,27 @@ public class ImagesController(
 
     [HttpPost("matte")]
     [RequestSizeLimit(52_428_800)]
-    public async Task<ActionResult<MatteResponse>> Matte(
-        IFormFile file,
-        [FromForm] string? bgColor,
-        [FromForm] string? foregroundThreshold,
-        [FromForm] string? edgeSoftness,
-        CancellationToken ct)
+    public async Task<ActionResult<MatteResponse>> Matte([FromForm] MatteUploadForm form, CancellationToken ct)
     {
-        if (file.Length == 0)
+        if (form.File.Length == 0)
             return BadRequest("空文件");
-        if (!TryParseHexColor(bgColor, out var parsed))
+        if (!TryParseHexColor(form.BgColor, out var parsed))
             return BadRequest("bgColor 应为 #RRGGBB");
 
         float? fg = null;
         float? es = null;
-        if (!string.IsNullOrWhiteSpace(foregroundThreshold)
-            && float.TryParse(foregroundThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var fgv))
+        if (!string.IsNullOrWhiteSpace(form.ForegroundThreshold)
+            && float.TryParse(form.ForegroundThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var fgv))
             fg = fgv;
-        if (!string.IsNullOrWhiteSpace(edgeSoftness)
-            && float.TryParse(edgeSoftness, NumberStyles.Float, CultureInfo.InvariantCulture, out var esv))
+        if (!string.IsNullOrWhiteSpace(form.EdgeSoftness)
+            && float.TryParse(form.EdgeSoftness, NumberStyles.Float, CultureInfo.InvariantCulture, out var esv))
             es = esv;
 
         var id = Guid.NewGuid();
         var dir = Path.Combine(StorageRoot, id.ToString());
         Directory.CreateDirectory(dir);
 
-        await using var read = file.OpenReadStream();
+        await using var read = form.File.OpenReadStream();
         // matte 接口用于预览“裁剪后换底色”，保持原尺寸，保证与裁剪预览一致
         var png = await imageProcessing.CreateBackgroundSameSizeAsync(read, parsed, ct, fg, es);
         var mattePath = Path.Combine(dir, "matte.png");
@@ -143,6 +138,7 @@ public class ImagesController(
     }
 
     [HttpGet("{id:guid}/matte")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None, Duration = 0)]
     public IActionResult GetMatte(Guid id)
     {
         var path = Path.Combine(StorageRoot, id.ToString(), "matte.png");
