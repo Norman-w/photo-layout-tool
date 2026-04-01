@@ -1,0 +1,17 @@
+.DS_Store
+.idea/
+.vscode/
+*.user
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+frontend/.npm-cache/
+
+# 后端
+backend/PhotoLayout.Api/bin/
+backend/PhotoLayout.Api/obj/
+backend/PhotoLayout.Api/*.db
+backend/PhotoLayout.Api/storage/
+# ONNX 权重较大，本地放置即可（见 onnx/README.txt）
+backend/PhotoLayout.Api/onnx/*.onnx

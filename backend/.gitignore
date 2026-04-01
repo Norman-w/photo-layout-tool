@@ -1,0 +1,5 @@
+PhotoLayout.Api/bin/
+PhotoLayout.Api/obj/
+PhotoLayout.Api/*.db
+PhotoLayout.Api/storage/
+PhotoLayout.Api/onnx/*.onnx

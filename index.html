@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>照片拼版 — 4×6 寸相纸 · 一寸照</title>
+  <style>
+    :root {
+      --bg: #1a1d23;
+      --panel: #252930;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #7c9eff;
+      --border: #3c424c;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    label.btn, button {
+      cursor: pointer;
+      font: inherit;
+    }
+
+    label.btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      color: #111;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    label.btn input { display: none; }
+
+    button {
+      padding: 0.5rem 1rem;
+      background: #3d4f7a;
+      color: var(--text);
+      border: none;
+      border-radius:8px;
+      font-weight: 600;
+    }
+
+    button:hover { filter: brightness(1.08); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .stats {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .stats strong { color: var(--accent); }
+
+    .preview-wrap {
+      background: #0d0f12;
+      border-radius: 10px;
+      padding: 1rem;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 200px;
+    }
+
+    /*
+     * 预览缩放：外层占位 = 实际纸张×缩放比例，内层 scale 从左上角缩，
+     * 避免「整页 scale + 错误负 margin」导致底部被裁掉、出现半行碎片。
+     */
+    .sheet-preview-outer {
+      --preview-scale: 0.65;
+      --paper-w: 101.6mm;
+      --paper-h: 152.4mm;
+      width: calc(var(--paper-w) * var(--preview-scale));
+      height: calc(var(--paper-h) * var(--preview-scale));
+      flex-shrink: 0;
+    }
+
+    .sheet-preview-inner {
+      width: var(--paper-w);
+      height: var(--paper-h);
+      transform: scale(var(--preview-scale));
+      transform-origin: top left;
+    }
+
+    .sheet {
+      background: #fff;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      display: grid;
+      /* row/column gap 由 JS 写入，均分相纸余量作裁切缝 */
+      width: var(--paper-w);
+      height: var(--paper-h);
+      box-sizing: border-box;
+    }
+
+    .cell {
+      overflow: hidden;
+      background: #eee;
+      outline: 1px solid rgba(0,0,0,0.1);
+      box-sizing: border-box;
+    }
+
+    .cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 20%;
+      display: block;
+    }
+
+    .cell.empty {
+      background: repeating-linear-gradient(
+        -45deg,
+        #f0f0f0,
+        #f0f0f0 6px,
+        #e6e6e6 6px,
+        #e6e6e6 12px
+      );
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 1rem;
+    }
+
+    @media print {
+      body { background: #fff; margin: 0; }
+      .app { max-width: none; padding: 0; margin: 0; }
+      .no-print { display: none !important; }
+      .preview-wrap {
+        background: #fff;
+        padding: 0;
+        margin: 0;
+        overflow: visible;
+        display: block;
+        min-height: 0;
+      }
+      .sheet-preview-outer,
+      .sheet-preview-inner {
+        width: auto !important;
+        height: auto !important;
+        transform: none !important;
+        margin: 0;
+      }
+      .sheet {
+        box-shadow: none;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .cell { outline: 1px solid #bbb; }
+    }
+
+  </style>
+  <style id="printPageRule"></style>
+</head>
+<body>
+  <div class="app">
+    <header class="no-print">
+      <h1>照片拼版工具</h1>
+      <p class="sub">4×6 寸相纸 · 标准一寸 25×35mm · 自动横竖排版</p>
+    </header>
+
+    <div class="panel no-print">
+      <div class="row">
+        <label class="btn">
+          选择照片
+          <input type="file" id="files" accept="image/*" multiple />
+        </label>
+        <button type="button" id="printBtn" disabled>打印本版</button>
+        <button type="button" id="clearBtn">清空</button>
+      </div>
+      <p class="stats" id="stats">请先选择至少一张图片。</p>
+      <p class="hint">打印时在系统对话框中选择打印机，纸张选 4×6（102×152mm）。若出现缩放，请选「实际大小」或 100%，关闭「适应页面」。</p>
+    </div>
+
+    <div class="preview-wrap">
+      <div class="sheet-preview-outer" id="sheetPreviewOuter">
+        <div class="sheet-preview-inner">
+          <div class="sheet" id="sheet"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /** 标准一寸：宽×高（mm） */
+      const PHOTO_W_MM = 25;
+      const PHOTO_H_MM = 35;
+      /** 4×6 寸相纸：宽×高（英寸），两种摆放 */
+      const PAPER_IN = { short: 4, long: 6 };
+
+      const filesInput = document.getElementById("files");
+      const printBtn = document.getElementById("printBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const sheet = document.getElementById("sheet");
+      const stats = document.getElementById("stats");
+      const printPageRule = document.getElementById("printPageRule");
+      const sheetPreviewOuter = document.getElementById("sheetPreviewOuter");
+
+      /** @type {string[]} */
+      let images = [];
+
+      const PREVIEW_SCALE = 0.65;
+
+      function bestLayout() {
+        const variants = [];
+        const paperConfigs = [
+          { label: "竖版相纸 4×6", wIn: PAPER_IN.short, hIn: PAPER_IN.long },
+          { label: "横版相纸 6×4", wIn: PAPER_IN.long, hIn: PAPER_IN.short },
+        ];
+        for (const p of paperConfigs) {
+          const pw = p.wIn * 25.4;
+          const ph = p.hIn * 25.4;
+          variants.push({
+            paperLabel: p.label,
+            paperWIn: p.wIn,
+            paperHIn: p.hIn,
+            slotWmm: PHOTO_W_MM,
+            slotHmm: PHOTO_H_MM,
+            cols: Math.floor(pw / PHOTO_W_MM),
+            rows: Math.floor(ph / PHOTO_H_MM),
+          });
+          variants.push({
+            paperLabel: p.label,
+            paperWIn: p.wIn,
+            paperHIn: p.hIn,
+            slotWmm: PHOTO_H_MM,
+            slotHmm: PHOTO_W_MM,
+            cols: Math.floor(pw / PHOTO_H_MM),
+            rows: Math.floor(ph / PHOTO_W_MM),
+          });
+        }
+        let best = variants[0];
+        let bestCount = best.cols * best.rows;
+        for (const v of variants) {
+          const c = v.cols * v.rows;
+          if (c > bestCount) {
+            best = v;
+            bestCount = c;
+          }
+        }
+        return {
+          ...best,
+          count: bestCount,
+          sheetWmm: best.paperWIn * 25.4,
+          sheetHmm: best.paperHIn * 25.4,
+        };
+      }
+
+      function render() {
+        const L = bestLayout();
+        const cols = L.cols;
+        const rows = L.rows;
+        const total = cols * rows;
+
+        const gapCol =
+          cols > 1 ? (L.sheetWmm - cols * L.slotWmm) / (cols - 1) : 0;
+        const gapRow =
+          rows > 1 ? (L.sheetHmm - rows * L.slotHmm) / (rows - 1) : 0;
+
+        sheet.innerHTML = "";
+        sheet.style.gridTemplateColumns = `repeat(${cols}, ${L.slotWmm}mm)`;
+        sheet.style.gridTemplateRows = `repeat(${rows}, ${L.slotHmm}mm)`;
+        sheet.style.columnGap = gapCol > 0 ? gapCol + "mm" : "0";
+        sheet.style.rowGap = gapRow > 0 ? gapRow + "mm" : "0";
+        sheetPreviewOuter.style.setProperty("--paper-w", L.sheetWmm + "mm");
+        sheetPreviewOuter.style.setProperty("--paper-h", L.sheetHmm + "mm");
+        sheetPreviewOuter.style.setProperty("--preview-scale", String(PREVIEW_SCALE));
+
+        printPageRule.textContent =
+          `@page { size: ${L.paperWIn}in ${L.paperHIn}in; margin: 0; }`;
+
+        for (let i = 0; i < total; i++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          const src = images.length ? images[i % images.length] : null;
+          if (src) {
+            const img = document.createElement("img");
+            img.src = src;
+            img.alt = "";
+            cell.appendChild(img);
+          } else {
+            cell.classList.add("empty");
+          }
+          sheet.appendChild(cell);
+        }
+
+        stats.innerHTML =
+          `当前排版：<strong>${L.paperLabel}</strong>，每格 <strong>${L.slotWmm}×${L.slotHmm} mm</strong>，` +
+          `<strong>${cols}×${rows}</strong> = <strong>${total} 张</strong> / 版。` +
+          ` 缝宽：横向约 <strong>${gapCol.toFixed(2)} mm</strong>、纵向约 <strong>${gapRow.toFixed(2)} mm</strong>（均分相纸余量便于裁切）。` +
+          (images.length
+            ? ` 已选 <strong>${images.length}</strong> 张图（按顺序循环填满）。`
+            : "");
+
+        printBtn.disabled = images.length === 0;
+      }
+
+      function readFiles(fileList) {
+        const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
+        if (!files.length) return;
+        Promise.all(
+          files.map(
+            (file) =>
+              new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = () => reject(new Error("read"));
+                r.readAsDataURL(file);
+              })
+          )
+        )
+          .then((next) => {
+            images = images.concat(next);
+            render();
+          })
+          .catch(() => {});
+      }
+
+      filesInput.addEventListener("change", function () {
+        readFiles(this.files);
+        this.value = "";
+      });
+
+      printBtn.addEventListener("click", function () {
+        window.print();
+      });
+
+      clearBtn.addEventListener("click", function () {
+        images = [];
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
