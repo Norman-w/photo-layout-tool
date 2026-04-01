@@ -12,6 +12,8 @@ frontend/.npm-cache/
 backend/PhotoLayout.Api/bin/
 backend/PhotoLayout.Api/obj/
 backend/PhotoLayout.Api/*.db
+backend/PhotoLayout.Api/*.db-shm
+backend/PhotoLayout.Api/*.db-wal
 backend/PhotoLayout.Api/storage/
 # ONNX 权重较大，本地放置即可（见 onnx/README.txt）
 backend/PhotoLayout.Api/onnx/*.onnx

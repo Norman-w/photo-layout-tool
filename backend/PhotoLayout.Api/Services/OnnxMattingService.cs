@@ -216,7 +216,6 @@ public sealed class OnnxMattingService : IDisposable
                 float r = p.R, g = p.G, b = p.B;
                 if (pull > 0.001f && a is > 0.02f and < 0.995f)
                 {
-                    // 中间透明处 + 仍略透的外沿（a 仍偏高时 4a(1-a) 太小，头发外圈色边靠 (1-a) 项）
                     var edge = Math.Clamp(4f * a * (1f - a) + 0.5f * (1f - a), 0f, 1f);
                     var mix = pull * edge;
                     r = r * (1f - mix) + bgColor.R * mix;
@@ -224,12 +223,20 @@ public sealed class OnnxMattingService : IDisposable
                     b = b * (1f - mix) + bgColor.B * mix;
                 }
 
+                var spill = Math.Clamp(cfg.BlueSpillSuppression, 0f, 1f);
+                if (spill > 0.001f && !MattingColorUtils.TargetBackgroundLooksBlueish(bgColor))
+                    MattingColorUtils.ApplyBlueSpillRef(ref r, ref g, ref b, spill, a);
+
                 result[x, y] = new Rgba32(
                     (byte)(r * a + bgColor.R * (1 - a)),
                     (byte)(g * a + bgColor.G * (1 - a)),
                     (byte)(b * a + bgColor.B * (1 - a)));
             }
         }
+
+        var defringe = Math.Clamp(cfg.PostCompositeBlueDefringe, 0f, 1f);
+        if (defringe > 0.001f && !MattingColorUtils.TargetBackgroundLooksBlueish(bgColor))
+            MattingColorUtils.PostCompositeBlueDefringe(result, bgColor, defringe);
 
         if (cfg.RefineBlueFringe)
             RefineBlueFringeOnImage(result);
@@ -252,6 +259,58 @@ public sealed class OnnxMattingService : IDisposable
     }
 
     public void Dispose() => _session?.Dispose();
+}
+
+internal static class MattingColorUtils
+{
+    /// <summary>目标底色本身偏蓝时，不做强去蓝，避免把合法蓝底/蓝衬衫洗没。</summary>
+    public static bool TargetBackgroundLooksBlueish(Rgba32 bg)
+    {
+        return bg.B >= bg.R + 18 && bg.B >= bg.G + 10;
+    }
+
+    /// <summary>按蒙版透明度加权压蓝；a 高时用「蓝过量」自适配权重，避免仅靠 4a(1-a)。</summary>
+    public static void ApplyBlueSpillRef(ref float r, ref float g, ref float b, float spillStrength, float a)
+    {
+        var maxRg = Math.Max(r, g);
+        var blueExcess = b - (maxRg + 4f);
+        if (blueExcess <= 0f)
+            return;
+
+        var edge = Math.Clamp(4f * a * (1f - a) + 0.55f * (1f - a), 0f, 1f);
+        var chroma = Math.Clamp(blueExcess / 48f, 0.08f, 1f);
+        var w = Math.Max(edge, 0.22f + 0.78f * chroma);
+        b -= blueExcess * spillStrength * w;
+        if (b < 0f) b = 0f;
+    }
+
+    public static void PostCompositeBlueDefringe(Image<Rgba32> img, Rgba32 bg, float strength)
+    {
+        for (var y = 0; y < img.Height; y++)
+        {
+            for (var x = 0; x < img.Width; x++)
+            {
+                var p = img[x, y];
+                float r = p.R, g = p.G, b = p.B;
+                var maxRg = Math.Max(r, g);
+                var excess = b - maxRg - 3f;
+                if (excess <= 0f)
+                    continue;
+
+                var t = Math.Clamp(excess / 32f, 0f, 1f) * strength;
+                b -= excess * t;
+                if (b < 0f) b = 0f;
+                var mix = t * 0.38f;
+                r = r * (1f - mix) + bg.R * mix;
+                g = g * (1f - mix) + bg.G * mix;
+                b = b * (1f - mix) + bg.B * mix;
+                img[x, y] = new Rgba32(
+                    (byte)Math.Clamp(r, 0f, 255f),
+                    (byte)Math.Clamp(g, 0f, 255f),
+                    (byte)Math.Clamp(b, 0f, 255f));
+            }
+        }
+    }
 }
 
 internal static class BlueBackdropDetector

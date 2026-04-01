@@ -1,71 +1,73 @@
 import type { SheetLayout } from '../types/layout'
 
+/**
+ * 在**用户指定的相纸宽高**上排**固定竖向单张**（宽×高 = 证件照短边×长边），
+ * 不再自动把相纸或单张横过来换张数，避免二寸等出现「头横过来」。
+ */
 export function computeBestLayout(
   paperWidthMm: number,
   paperHeightMm: number,
   photoWidthMm: number,
   photoHeightMm: number,
 ): SheetLayout {
-  const variants = [
-    {
-      paperLabel: `${paperWidthMm}×${paperHeightMm} mm`,
-      paperWIn: paperWidthMm / 25.4,
-      paperHIn: paperHeightMm / 25.4,
-      slotWmm: photoWidthMm,
-      slotHmm: photoHeightMm,
-      cols: Math.floor(paperWidthMm / photoWidthMm),
-      rows: Math.floor(paperHeightMm / photoHeightMm),
-    },
-    {
-      paperLabel: `${paperWidthMm}×${paperHeightMm} mm`,
-      paperWIn: paperWidthMm / 25.4,
-      paperHIn: paperHeightMm / 25.4,
-      slotWmm: photoHeightMm,
-      slotHmm: photoWidthMm,
-      cols: Math.floor(paperWidthMm / photoHeightMm),
-      rows: Math.floor(paperHeightMm / photoWidthMm),
-    },
-    {
-      paperLabel: `${paperHeightMm}×${paperWidthMm} mm`,
-      paperWIn: paperHeightMm / 25.4,
-      paperHIn: paperWidthMm / 25.4,
-      slotWmm: photoWidthMm,
-      slotHmm: photoHeightMm,
-      cols: Math.floor(paperHeightMm / photoWidthMm),
-      rows: Math.floor(paperWidthMm / photoHeightMm),
-    },
-    {
-      paperLabel: `${paperHeightMm}×${paperWidthMm} mm`,
-      paperWIn: paperHeightMm / 25.4,
-      paperHIn: paperWidthMm / 25.4,
-      slotWmm: photoHeightMm,
-      slotHmm: photoWidthMm,
-      cols: Math.floor(paperHeightMm / photoHeightMm),
-      rows: Math.floor(paperWidthMm / photoWidthMm),
-    },
-  ]
+  const paperWIn = paperWidthMm / 25.4
+  const paperHIn = paperHeightMm / 25.4
+  const slotWmm = photoWidthMm
+  const slotHmm = photoHeightMm
+  const cols = Math.floor(paperWidthMm / photoWidthMm)
+  const rows = Math.floor(paperHeightMm / photoHeightMm)
 
-  let best = variants[0]
-  let bestCount = best.cols * best.rows
-  for (const v of variants) {
-    const count = v.cols * v.rows
-    if (count > bestCount) {
-      best = v
-      bestCount = count
+  if (cols < 1 || rows < 1) {
+    return {
+      paperLabel: `${paperWidthMm}×${paperHeightMm} mm`,
+      paperWIn,
+      paperHIn,
+      slotWmm,
+      slotHmm,
+      cols: 0,
+      rows: 0,
+      count: 0,
+      sheetWmm: paperWidthMm,
+      sheetHmm: paperHeightMm,
+      gapCol: 0,
+      gapRow: 0,
+      gapMm: 0,
+      padXMm: 0,
+      padYMm: 0,
     }
   }
 
-  const sheetWmm = best.paperWIn * 25.4
-  const sheetHmm = best.paperHIn * 25.4
-  const gapCol = best.cols > 1 ? (sheetWmm - best.cols * best.slotWmm) / (best.cols - 1) : 0
-  const gapRow = best.rows > 1 ? (sheetHmm - best.rows * best.slotHmm) / (best.rows - 1) : 0
+  const count = cols * rows
+  const sheetWmm = paperWidthMm
+  const sheetHmm = paperHeightMm
+  const gapCol = cols > 1 ? (sheetWmm - cols * slotWmm) / (cols - 1) : 0
+  const gapRow = rows > 1 ? (sheetHmm - rows * slotHmm) / (rows - 1) : 0
+
+  let gapMm: number
+  if (cols > 1 && rows > 1) gapMm = Math.min(gapCol, gapRow)
+  else if (cols > 1) gapMm = gapCol
+  else gapMm = gapRow
+
+  const gridWmm = cols * slotWmm + (cols > 1 ? (cols - 1) * gapMm : 0)
+  const gridHmm = rows * slotHmm + (rows > 1 ? (rows - 1) * gapMm : 0)
+  const padXMm = Math.max(0, (sheetWmm - gridWmm) / 2)
+  const padYMm = Math.max(0, (sheetHmm - gridHmm) / 2)
 
   return {
-    ...best,
-    count: bestCount,
+    paperLabel: `${paperWidthMm}×${paperHeightMm} mm`,
+    paperWIn,
+    paperHIn,
+    slotWmm,
+    slotHmm,
+    cols,
+    rows,
+    count,
     sheetWmm,
     sheetHmm,
     gapCol,
     gapRow,
+    gapMm,
+    padXMm,
+    padYMm,
   }
 }

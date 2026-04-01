@@ -39,4 +39,14 @@ public class MattingOptions
     /// 本项在半透明过渡带把源色往目标底色拽（0=关，~0.45 较均衡）。
     /// </summary>
     public float EdgeColorPullStrength { get; set; } = 0.42f;
+
+    /// <summary>
+    /// 蓝色溢色抑制强度（0-1）。针对发丝中常见的蓝幕/天空溢色，压低蓝通道；与 edgeColorPull 无关，高 alpha 发丝也会处理。
+    /// </summary>
+    public float BlueSpillSuppression { get; set; } = 0.72f;
+
+    /// <summary>
+    /// 合成后再扫一遍结果图去蓝边（0=关）。换白/红/灰底时建议大于 0；目标底色本身偏蓝时请关小或置 0。
+    /// </summary>
+    public float PostCompositeBlueDefringe { get; set; } = 0.88f;
 }
