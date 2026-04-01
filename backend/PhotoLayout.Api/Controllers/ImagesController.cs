@@ -123,6 +123,10 @@ public class ImagesController(
         if (!string.IsNullOrWhiteSpace(form.EdgeSoftness)
             && float.TryParse(form.EdgeSoftness, NumberStyles.Float, CultureInfo.InvariantCulture, out var esv))
             es = esv;
+        float? pull = null;
+        if (!string.IsNullOrWhiteSpace(form.EdgeColorPull)
+            && float.TryParse(form.EdgeColorPull, NumberStyles.Float, CultureInfo.InvariantCulture, out var pv))
+            pull = pv;
 
         var id = Guid.NewGuid();
         var dir = Path.Combine(StorageRoot, id.ToString());
@@ -130,7 +134,7 @@ public class ImagesController(
 
         await using var read = form.File.OpenReadStream();
         // matte 接口用于预览“裁剪后换底色”，保持原尺寸，保证与裁剪预览一致
-        var png = await imageProcessing.CreateBackgroundSameSizeAsync(read, parsed, ct, fg, es);
+        var png = await imageProcessing.CreateBackgroundSameSizeAsync(read, parsed, ct, fg, es, pull);
         var mattePath = Path.Combine(dir, "matte.png");
         await System.IO.File.WriteAllBytesAsync(mattePath, png, ct);
 

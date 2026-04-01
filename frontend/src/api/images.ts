@@ -27,6 +27,8 @@ export interface MatteOptions {
   foregroundThreshold?: number
   /** 软边 0.01~1 */
   edgeSoftness?: number
+  /** 边缘去色 0~1，减轻发丝里夹带原背景色 */
+  edgeColorPull?: number
 }
 
 export async function matteImage(
@@ -45,6 +47,10 @@ export async function matteImage(
     if (options.edgeSoftness != null) {
       const n = Number(options.edgeSoftness)
       if (Number.isFinite(n)) form.append('edgeSoftness', n.toString())
+    }
+    if (options.edgeColorPull != null) {
+      const n = Number(options.edgeColorPull)
+      if (Number.isFinite(n)) form.append('edgeColorPull', n.toString())
     }
   }
   form.append('file', file)

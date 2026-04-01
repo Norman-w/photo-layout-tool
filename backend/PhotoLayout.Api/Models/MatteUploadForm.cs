@@ -9,4 +9,5 @@ public sealed class MatteUploadForm
     public string? BgColor { get; set; }
     public string? ForegroundThreshold { get; set; }
     public string? EdgeSoftness { get; set; }
+    public string? EdgeColorPull { get; set; }
 }

@@ -53,13 +53,14 @@ public class ImageProcessingService(OnnxMattingService onnx)
         Rgba32 bgColor,
         CancellationToken ct = default,
         float? foregroundThreshold = null,
-        float? edgeSoftness = null)
+        float? edgeSoftness = null,
+        float? edgeColorPull = null)
     {
         using var loaded = await Image.LoadAsync<Rgba32>(sourceStream, ct);
         Image<Rgba32>? onnxImg = null;
         try
         {
-            onnxImg = onnx.TryCompositeOnColor(loaded, bgColor, foregroundThreshold, edgeSoftness);
+            onnxImg = onnx.TryCompositeOnColor(loaded, bgColor, foregroundThreshold, edgeSoftness, edgeColorPull);
             using var output = onnxImg ?? loaded.Clone();
             await using var ms = new MemoryStream();
             await output.SaveAsPngAsync(ms, ct);

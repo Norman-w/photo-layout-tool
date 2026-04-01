@@ -73,7 +73,8 @@ public sealed class OnnxMattingService : IDisposable
         Image<Rgba32> source,
         Rgba32 bgColor,
         float? foregroundThresholdOverride = null,
-        float? edgeSoftnessOverride = null)
+        float? edgeSoftnessOverride = null,
+        float? edgeColorPullOverride = null)
     {
         if (_session is null)
             return null;
@@ -210,8 +211,8 @@ public sealed class OnnxMattingService : IDisposable
                 if (cfg.RemoveBlueBackdrop && BlueBackdropDetector.IsLikelyStudioBlue(p))
                     a = Math.Min(a, Math.Clamp(cfg.BlueBackdropAlphaCap, 0f, 1f));
 
-                // 去色边：模型在发丝处常给高 alpha，但像素仍含原墙/天空色；单靠抬阈值压不掉。在 a≈0.5 的过渡带把源 RGB 往目标底色拉。
-                var pull = Math.Clamp(cfg.EdgeColorPullStrength, 0f, 1f);
+                // 去色边：模型在发丝处常给高 alpha，但像素仍含原墙/天空色；单靠抬阈值压不掉。在过渡带把源 RGB 往目标底色拉。
+                var pull = Math.Clamp(edgeColorPullOverride ?? cfg.EdgeColorPullStrength, 0f, 1f);
                 float r = p.R, g = p.G, b = p.B;
                 if (pull > 0.001f && a is > 0.02f and < 0.995f)
                 {

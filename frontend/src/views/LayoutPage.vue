@@ -50,6 +50,8 @@ const backgroundColor = ref('#ffffff')
 /** 与 appsettings Matting 默认一致；调高可减少背景残留 */
 const mattingForegroundThreshold = ref(0.58)
 const mattingEdgeSoftness = ref(0.12)
+/** 减轻头发里原背景色边；与「抠图阈值」不同，专治色边 */
+const mattingEdgeColorPull = ref(0.42)
 
 const source = ref<SourceImage | null>(null)
 const cropModalVisible = ref(false)
@@ -196,6 +198,7 @@ async function applyBackgroundColor() {
     const res = await matteImage(file, backgroundColor.value, {
       foregroundThreshold: mattingForegroundThreshold.value,
       edgeSoftness: mattingEdgeSoftness.value,
+      edgeColorPull: mattingEdgeColorPull.value,
     })
     source.value = {
       ...source.value,
@@ -224,6 +227,7 @@ function resetAll() {
   backgroundColor.value = '#ffffff'
   mattingForegroundThreshold.value = 0.58
   mattingEdgeSoftness.value = 0.12
+  mattingEdgeColorPull.value = 0.42
 }
 
 watch(cropModalVisible, (open) => {
@@ -317,6 +321,18 @@ onBeforeUnmount(() => {
               style="max-width: 320px"
             />
             <span class="matting-sliders__hint">略大更柔和，过小易出现硬边</span>
+          </div>
+          <div class="matting-sliders__row">
+            <span class="matting-sliders__label">边缘去色 {{ mattingEdgeColorPull.toFixed(2) }}</span>
+            <n-slider
+              v-model:value="mattingEdgeColorPull"
+              :min="0"
+              :max="1"
+              :step="0.02"
+              :disabled="!source"
+              style="max-width: 320px"
+            />
+            <span class="matting-sliders__hint">专治头发里夹带原背景色；阈值主要改轮廓透明，对这种「色边」请调这项</span>
           </div>
         </n-space>
 
