@@ -1,3 +1,9 @@
+/** 与 vite base 对齐，部署在 /tools/photo-layout/ 时 API 走同前缀 */
+function apiUrl(path: string): string {
+  const root = import.meta.env.BASE_URL.replace(/\/?$/, '')
+  return `${root}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export interface UploadResponse {
   id: string
   originalUrl: string
@@ -7,7 +13,7 @@ export interface UploadResponse {
 export async function uploadImage(file: File): Promise<UploadResponse> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/api/images/upload', {
+  const res = await fetch(apiUrl('/api/images/upload'), {
     method: 'POST',
     body: form,
   })
@@ -54,7 +60,7 @@ export async function matteImage(
     }
   }
   form.append('file', file)
-  const res = await fetch('/api/images/matte', {
+  const res = await fetch(apiUrl('/api/images/matte'), {
     method: 'POST',
     body: form,
   })

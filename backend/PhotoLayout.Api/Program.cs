@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using PhotoLayout.Api.Data;
 using PhotoLayout.Api.Options;
 using PhotoLayout.Api.Services;
@@ -23,7 +24,10 @@ builder.Services.AddCors(o =>
     {
         p.WithOrigins(
                 "http://localhost:5173",
-                "http://127.0.0.1:5173")
+                "http://127.0.0.1:5173",
+                "http://localhost:10000",
+                "https://norman.wang",
+                "http://norman.wang")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -46,5 +50,16 @@ if (!app.Environment.IsDevelopment())
 app.UseCors("frontend");
 app.UseAuthorization();
 app.MapControllers();
+
+var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "www");
+if (Directory.Exists(wwwRoot))
+{
+    var wwwFiles = new PhysicalFileProvider(wwwRoot);
+    var defaultFiles = new DefaultFilesOptions { FileProvider = wwwFiles };
+    defaultFiles.DefaultFileNames.Add("index.html");
+    app.UseDefaultFiles(defaultFiles);
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = wwwFiles });
+    app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = wwwFiles });
+}
 
 app.Run();

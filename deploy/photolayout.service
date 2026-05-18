@@ -1,0 +1,15 @@
+[Unit]
+Description=Photo Layout API + static frontend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={{DEPLOY_PATH}}
+ExecStart={{DEPLOY_PATH}}/PhotoLayout.Api
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://0.0.0.0:{{HTTP_PORT}}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

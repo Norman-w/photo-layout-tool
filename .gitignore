@@ -8,6 +8,9 @@ frontend/node_modules/
 frontend/dist/
 frontend/.npm-cache/
 
+# 发布产物
+publish/
+
 # 后端
 backend/PhotoLayout.Api/bin/
 backend/PhotoLayout.Api/obj/
